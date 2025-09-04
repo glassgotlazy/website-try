@@ -1,0 +1,23 @@
+{
+  "dependencies": {
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "tailwindcss": "latest",
+    "lucide-react": "latest",
+    "@/components": "workspace:*",
+    "class-variance-authority": "latest",
+    "tailwind-variants": "latest",
+    "shadcn-ui": "latest"
+  },
+  "devDependencies": {
+    "autoprefixer": "latest",
+    "postcss": "latest",
+    "typescript": "latest"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  }
+}
