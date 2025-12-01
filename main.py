@@ -54,5 +54,3 @@ if word_file:
         tmp.write(word_file.getvalue())
         tmp.close()
         path = tmp.name
-
- 
