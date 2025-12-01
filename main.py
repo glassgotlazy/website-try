@@ -49,8 +49,10 @@ questions = []
 if word_file:
     st.markdown("---")
     with st.spinner("Reading document..."):
-        try:
-            ext = ".docx" if word_file.name.endswith(".docx") else ".doc"
-            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
-            tmp.write(word_file.getvalue())
-            tmp.close
+        ext = ".docx" if word_file.name.endswith(".docx") else ".doc"
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+        tmp.write(word_file.getvalue())
+        tmp.close()
+        path = tmp.name
+
+ 
