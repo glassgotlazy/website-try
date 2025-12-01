@@ -1,4 +1,4 @@
-import streamlit as st
+ import streamlit as st
 from docx import Document
 from reportlab.lib.pagesizes import A4, letter
 from reportlab.pdfgen import canvas
@@ -269,7 +269,9 @@ with st.expander("📚 How to use this app"):
     - ✅ Support for A4 and Letter sizes
     """)
 
-# Requirements info
 st.markdown("---")
-st.markdown("""
-**Requirements (Install before running):**
+st.markdown("**Requirements (Install before running):**")
+st.code("pip install streamlit python-docx reportlab pillow", language="bash")
+st.markdown("**Run the app:**")
+st.code("streamlit run question_pdf_generator.py", language="bash")
+
