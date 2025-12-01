@@ -11,6 +11,7 @@ from PIL import Image as PILImage
 import io
 import re
 
+# ---- Streamlit page config ----
 st.set_page_config(page_title="Question PDF Generator", layout="wide")
 st.title("📄 Question PDF Generator")
 st.markdown("Convert your questions and optional screenshots into a pro PDF (one question per page)")
@@ -24,6 +25,7 @@ show_page_numbers = st.sidebar.checkbox("Page numbers", value=True)
 
 # ---- File uploaders ----
 col1, col2 = st.columns(2)
+
 with col1:
     st.subheader("📋 Upload Word Document")
     word_file = st.file_uploader(
@@ -59,10 +61,10 @@ def convert_doc_to_docx(in_path):
         st.error("Failed to convert .doc to .docx. Please save as .docx manually if this persists.")
         return None
 
-# ---- Extract questions ----
+# ---- Extract questions from Word file ----
 questions = []
 if word_file:
-    is_docx = word_file.name.endswith(".docx")
+    is_docx = word_file.name.lower().endswith(".docx")
     with tempfile.NamedTemporaryFile(delete=False, suffix=('.docx' if is_docx else '.doc')) as tmp_file:
         tmp_file.write(word_file.read())
         tmp_path = tmp_file.name
@@ -94,7 +96,7 @@ if word_file:
                         questions.append(text)
 
         if not questions:
-            st.error('No questions detected in file.')
+            st.error("No questions detected in file.")
         else:
             st.success(f"Detected {len(questions)} questions (or tasks).")
             with st.expander("Preview Questions"):
@@ -109,6 +111,7 @@ if word_file:
 screenshots_dict = {}
 if screenshot_files:
     for idx, file in enumerate(screenshot_files):
+        # Try to extract first number from filename; else fallback to index+1
         numbers = re.findall(r'\d+', file.name)
         num = int(numbers[0]) if numbers else idx + 1
         screenshots_dict[num] = file
@@ -128,10 +131,10 @@ if questions:
 
         styles = getSampleStyleSheet()
         qstyle = ParagraphStyle(
-            'Question',
-            parent=styles['Normal'],
+            "Question",
+            parent=styles["Normal"],
             fontSize=font_size,
-            alignment=0,
+            alignment=0,  # left
             spaceAfter=0.4 * inch,
             textColor=colors.HexColor("#1a1a1a"),
         )
@@ -148,3 +151,66 @@ if questions:
                     uploaded_file = screenshots_dict[q_num]
                     uploaded_file.seek(0)
                     img_bytes = uploaded_file.read()
+
+                    # Use PIL to get image size
+                    pil_img = PILImage.open(io.BytesIO(img_bytes))
+                    img_width, img_height = pil_img.size
+
+                    # Calculate target size for PDF
+                    max_width = page_size[0] - inch  # 0.5" margin each side
+                    target_width = min(max_width, 5.5 * inch)
+                    aspect = img_height / img_width
+                    target_height = target_width * aspect
+
+                    # BytesIO buffer for reportlab Image
+                    img_buffer = io.BytesIO(img_bytes)
+
+                    story.append(Spacer(1, 0.15 * inch))
+                    story.append(
+                        Image(img_buffer, width=target_width, height=target_height)
+                    )
+                except Exception as e:
+                    st.warning(f"Could not embed screenshot for Q{q_num}: {e}")
+
+            # Page break between questions
+            if q_num < len(questions):
+                story.append(PageBreak())
+
+        # ---- Page numbers ----
+        def add_page_number(canvas, doc_obj):
+            if show_page_numbers:
+                canvas.saveState()
+                canvas.setFont("Helvetica", 8)
+                canvas.setFillColor(colors.grey)
+                canvas.drawCentredString(
+                    page_size[0] / 2, 0.40 * inch, f"Page {doc_obj.page}"
+                )
+                canvas.restoreState()
+
+        # Build the PDF
+        doc.build(story, onFirstPage=add_page_number, onLaterPages=add_page_number)
+        pdf_bytes = pdf_buffer.getvalue()
+
+        st.success(f"PDF generated: {len(questions)} pages!")
+        st.download_button(
+            label="📥 Download PDF",
+            data=pdf_bytes,
+            file_name="questions_with_screenshots.pdf",
+            mime="application/pdf"
+        )
+
+# ---- Info and requirements ----
+with st.expander("How to use this app"):
+    st.markdown(
+        """
+1. Upload your `.doc` or `.docx` file listing questions or tasks.
+2. Optionally upload screenshots, numbered to match question order (e.g. `Q1.png` → 1, `2_question.png` → 2).
+3. Click **Generate PDF**. Each page = one question + matching screenshot (if provided).
+4. Download and print or share your PDF.
+
+- **For `.doc` files, LibreOffice must be installed.**
+- On Streamlit Cloud, add `libreoffice` to `packages.txt`.
+        """
+    )
+
+st.caption("Made with Streamlit · Supports .doc and .docx · Professional multipage PDF")
