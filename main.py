@@ -1,5 +1,4 @@
-import streamlit as st
-import tempfile
+port tempfile
 import os
 import subprocess
 import re
@@ -38,8 +37,10 @@ def convert_doc(path):
         subprocess.run(["libreoffice", "--headless", "--convert-to", "docx", "--outdir", outdir, path], capture_output=True, timeout=30)
         base = os.path.splitext(os.path.basename(path))[0]
         converted = os.path.join(outdir, base + ".docx")
-        return converted if os.path.exists(converted) else None
-    except:
+        if os.path.exists(converted):
+            return converted
+        return None
+    except Exception:
         return None
 
 questions = []
@@ -51,7 +52,4 @@ if word_file:
             ext = ".docx" if word_file.name.endswith(".docx") else ".doc"
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
             tmp.write(word_file.getvalue())
-            tmp.close()
-            path = tmp.name
-
- 
+            tmp.close
