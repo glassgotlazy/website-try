@@ -1,7 +1,8 @@
- import streamlit as st
+import streamlit as st
 from docx import Document
 from reportlab.lib.pagesizes import A4, letter
 from reportlab.pdfgen import canvas
+
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
