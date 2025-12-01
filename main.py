@@ -17,14 +17,12 @@ st.set_page_config(page_title="Question PDF Generator", page_icon="📄", layout
 st.title("📄 Question PDF Generator")
 st.markdown("Create professional PDFs with one question per page")
 
-# Sidebar
 st.sidebar.header("⚙️ Settings")
 page_size_option = st.sidebar.selectbox("Page Size", ["A4", "Letter"])
 page_size = A4 if page_size_option == "A4" else letter
 font_size = st.sidebar.slider("Font Size", 10, 18, 12)
 show_page_numbers = st.sidebar.checkbox("Page numbers", value=True)
 
-# Main layout
 col1, col2 = st.columns(2)
 
 with col1:
@@ -38,15 +36,17 @@ with col2:
 def convert_doc_to_docx(doc_path):
     try:
         output_dir = tempfile.gettempdir()
-        subprocess.run(['libreoffice', '--headless', '--convert-to', 'docx', '--outdir', output_dir, doc_path], 
-                      capture_output=True, timeout=30)
+        result = subprocess.run(
+            ["libreoffice", "--headless", "--convert-to", "docx", "--outdir", output_dir, doc_path],
+            capture_output=True,
+            timeout=30
+        )
         base_name = os.path.splitext(os.path.basename(doc_path))[0]
-        converted = os.path.join(output_dir, base_name + '.docx')
+        converted = os.path.join(output_dir, base_name + ".docx")
         return converted if os.path.exists(converted) else None
     except:
         return None
 
-# Extract questions
 questions = []
 
 if word_file:
@@ -54,6 +54,6 @@ if word_file:
 
     with st.spinner("Reading document..."):
         try:
-            file_ext = '.docx' if word_file.name.endswith('.docx') else '.doc'
+            file_ext = ".docx" if word_file.name.endswith(".docx") else ".doc"
 
-            with tempfile.NamedTemporaryFile(delete=F
+            temp_file = tempfile.NamedTemporaryFile(delete=False,
