@@ -1,311 +1,275 @@
-'use client';
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import {
-  Trophy,
-  Users,
-  Target,
-  Mail,
-  Phone,
-  MapPin,
-  ChevronDown,
-  Menu,
-  X,
-  Gamepad2,
-  Zap,
-  Award,
-  Crown,
-} from 'lucide-react';
+import streamlit as st
+from docx import Document
+from reportlab.lib.pagesizes import A4, letter
+from reportlab.pdfgen import canvas
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, Image
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+import io
+import os
+from pathlib import Path
+from PIL import Image as PILImage
 
-export default function Home() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isVisible, setIsVisible] = useState(false);
+st.set_page_config(page_title="Question PDF Generator", layout="wide")
 
-  useEffect(() => {
-    setIsVisible(true);
-  }, []);
+st.title("📄 Question PDF Generator")
+st.markdown("Convert your questions + screenshots into a professional PDF (one question per page)")
 
-  const scrollToSection = (sectionId: string) => {
-    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
-    setIsMenuOpen(false);
-  };
+# Sidebar for settings
+st.sidebar.header("⚙️ Settings")
+page_size_option = st.sidebar.selectbox(
+    "Page Size",
+    ["A4", "Letter"],
+    help="Choose your preferred page size"
+)
+page_size = A4 if page_size_option == "A4" else letter
 
-  return (
-    <main className="min-h-screen bg-gradient-to-br from-black via-red-900 to-black">
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 bg-black/80 backdrop-blur-md border-b border-red-500/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-2">
-              <Gamepad2 className="w-8 h-8 text-red-500" />
-              <span className="text-xl font-bold text-white tracking-wide">Elite Tatins</span>
-            </div>
+font_size = st.sidebar.slider("Question Font Size", 10, 18, 14)
+include_page_numbers = st.sidebar.checkbox("Add page numbers", value=True)
 
-            {/* Desktop Menu */}
-            <div className="hidden md:flex space-x-8">
-              {['Home', 'Team', 'Achievements', 'About', 'Contact'].map((item) => (
-                <button
-                  key={item}
-                  onClick={() => scrollToSection(item.toLowerCase())}
-                  className="text-gray-300 hover:text-red-500 transition-colors duration-200"
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
+# Main content area
+col1, col2 = st.columns(2)
 
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden text-white"
-            >
-              {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-          </div>
+with col1:
+    st.subheader("📋 Upload Word Document")
+    word_file = st.file_uploader(
+        "Select your Word file with 40 questions",
+        type=["docx", "doc"],
+        help="One question per paragraph"
+    )
 
-          {/* Mobile Menu */}
-          {isMenuOpen && (
-            <div className="md:hidden bg-black/95 backdrop-blur-md absolute top-16 left-0 right-0 border-b border-red-500/30">
-              <div className="px-4 py-4 space-y-3">
-                {['Home', 'Team', 'Achievements', 'About', 'Contact'].map((item) => (
-                  <button
-                    key={item}
-                    onClick={() => scrollToSection(item.toLowerCase())}
-                    className="block w-full text-left text-gray-300 hover:text-red-500 transition-colors duration-200 py-2"
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </nav>
+with col2:
+    st.subheader("🖼️ Upload Screenshots")
+    screenshot_files = st.file_uploader(
+        "Upload screenshots (in order)",
+        type=["png", "jpg", "jpeg"],
+        accept_multiple_files=True,
+        help="Name them: 1.png, 2.png, etc. or upload in correct order"
+    )
 
-      {/* Hero Section */}
-      <section id="home" className="pt-16 min-h-screen flex items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-red-600/20 to-black/40" />
-        <div
-          className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10 transition-all duration-1000 ${
-            isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
-          }`}
-        >
-          <div className="flex items-center justify-center mb-8">
-            <Crown className="w-16 h-16 text-red-500 mr-4 animate-pulse" />
-            <h1 className="text-6xl md:text-8xl font-extrabold text-white tracking-tight drop-shadow-lg">
-              Elite <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-yellow-500">Tatins</span>
-            </h1>
-          </div>
-          <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto italic">
-            Rising through the Call of Duty Mobile competitive scene with skill, passion, and tactical brilliance
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button
-              onClick={() => scrollToSection('team')}
-              size="lg"
-              className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:shadow-red-500/50 transition-all duration-300"
-            >
-              <Users className="w-5 h-5 mr-2" />
-              Meet the Team
-            </Button>
-            <Button
-              onClick={() => scrollToSection('achievements')}
-              variant="outline"
-              size="lg"
-              className="border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black px-8 py-3 rounded-xl font-bold transition-all duration-300"
-            >
-              <Trophy className="w-5 h-5 mr-2" />
-              Our Journey
-            </Button>
-          </div>
-        </div>
+# Extract questions from Word document
+questions = []
+if word_file:
+    try:
+        doc = Document(word_file)
+        for para in doc.paragraphs:
+            text = para.text.strip()
+            if text:  # Only add non-empty paragraphs
+                questions.append(text)
+        
+        st.success(f"✅ Found {len(questions)} questions in the document")
+        
+        with st.expander("👀 Preview Questions"):
+            for i, q in enumerate(questions[:5], 1):
+                st.write(f"**Q{i}:** {q[:100]}...")
+            if len(questions) > 5:
+                st.write(f"... and {len(questions) - 5} more questions")
+    
+    except Exception as e:
+        st.error(f"❌ Error reading Word document: {str(e)}")
+        questions = []
 
-        {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
-          <ChevronDown className="w-6 h-6 text-red-400" />
-        </div>
-      </section>
+# Process screenshots
+screenshots_dict = {}
+if screenshot_files:
+    st.info(f"📸 {len(screenshot_files)} screenshot(s) uploaded")
+    
+    # Try to organize screenshots by number in filename
+    for idx, file in enumerate(screenshot_files):
+        try:
+            img = PILImage.open(file)
+            # Try to extract number from filename
+            filename = file.name
+            question_num = None
+            
+            # Look for number patterns like "1.", "1-", etc.
+            import re
+            numbers = re.findall(r'\d+', filename)
+            if numbers:
+                question_num = int(numbers[0])
+            else:
+                question_num = idx + 1
+            
+            screenshots_dict[question_num] = file
+            st.caption(f"Screenshot for Q{question_num}: {file.name}")
+        except Exception as e:
+            st.warning(f"⚠️ Could not process {file.name}: {str(e)}")
 
-      {/* Team Section */}
-      <section id="team" className="py-20 bg-black/70">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
-              CODM <span className="text-red-500">Squad</span>
-            </h2>
-            <p className="text-gray-300 text-lg max-w-2xl mx-auto">
-              Meet the warriors carrying Elite Tatins' name in Call of Duty Mobile esports
-            </p>
-          </div>
+# Generate PDF button
+if questions:
+    col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
+    
+    with col_btn1:
+        if st.button("✨ Generate PDF", key="generate", use_container_width=True):
+            try:
+                # Create PDF in memory
+                pdf_buffer = io.BytesIO()
+                
+                doc = SimpleDocTemplate(
+                    pdf_buffer,
+                    pagesize=page_size,
+                    rightMargin=0.5*inch,
+                    leftMargin=0.5*inch,
+                    topMargin=0.75*inch,
+                    bottomMargin=0.75*inch
+                )
+                
+                # Create styles
+                styles = getSampleStyleSheet()
+                question_style = ParagraphStyle(
+                    'CustomQuestion',
+                    parent=styles['Normal'],
+                    fontSize=font_size,
+                    textColor=colors.HexColor("#134252"),
+                    spaceAfter=0.3*inch,
+                    alignment=4,  # Left align
+                    leading=1.4*font_size,
+                    fontName='Helvetica-Bold'
+                )
+                
+                page_num_style = ParagraphStyle(
+                    'PageNum',
+                    parent=styles['Normal'],
+                    fontSize=9,
+                    textColor=colors.grey,
+                    alignment=1  # Center
+                )
+                
+                # Build PDF content
+                story = []
+                
+                for q_num, question in enumerate(questions, 1):
+                    # Add question
+                    question_para = Paragraph(f"<b>Q{q_num}:</b> {question}", question_style)
+                    story.append(question_para)
+                    
+                    # Add screenshot if available
+                    if q_num in screenshots_dict:
+                        try:
+                            screenshot_file = screenshots_dict[q_num]
+                            
+                            # Convert file to PIL Image to get dimensions
+                            img_pil = PILImage.open(screenshot_file)
+                            img_width, img_height = img_pil.size
+                            
+                            # Calculate max width (page width - margins)
+                            max_width = page_size[0] - 1*inch
+                            
+                            # Scale image to fit page
+                            aspect_ratio = img_height / img_width
+                            img_width_scaled = min(max_width, 5*inch)
+                            img_height_scaled = img_width_scaled * aspect_ratio
+                            
+                            # Add some spacing
+                            story.append(Spacer(1, 0.2*inch))
+                            
+                            # Add screenshot
+                            img = Image(
+                                screenshot_file,
+                                width=img_width_scaled,
+                                height=img_height_scaled
+                            )
+                            story.append(img)
+                            
+                        except Exception as e:
+                            st.warning(f"⚠️ Could not embed screenshot for Q{q_num}: {str(e)}")
+                    
+                    # Add page break after each question (except the last one)
+                    if q_num < len(questions):
+                        story.append(PageBreak())
+                
+                # Add page numbers if selected
+                if include_page_numbers:
+                    def add_page_number(canvas_obj, doc_obj):
+                        canvas_obj.saveState()
+                        canvas_obj.setFont("Helvetica", 9)
+                        canvas_obj.setFillColor(colors.grey)
+                        page_num = doc_obj.page
+                        canvas_obj.drawString(
+                            page_size[0]/2,
+                            0.4*inch,
+                            f"Page {page_num}"
+                        )
+                        canvas_obj.restoreState()
+                    
+                    doc.build(story, onFirstPage=add_page_number, onLaterPages=add_page_number)
+                else:
+                    doc.build(story)
+                
+                # Get PDF bytes
+                pdf_bytes = pdf_buffer.getvalue()
+                
+                # Display success message
+                st.success(f"✅ PDF generated successfully with {len(questions)} questions!")
+                
+                # Download button
+                st.download_button(
+                    label="📥 Download PDF",
+                    data=pdf_bytes,
+                    file_name="questions_with_screenshots.pdf",
+                    mime="application/pdf",
+                    key="download"
+                )
+                
+                # Show stats
+                col_stat1, col_stat2, col_stat3 = st.columns(3)
+                with col_stat1:
+                    st.metric("Total Questions", len(questions))
+                with col_stat2:
+                    st.metric("Screenshots Embedded", len(screenshots_dict))
+                with col_stat3:
+                    st.metric("Total Pages", len(questions))
+                
+            except Exception as e:
+                st.error(f"❌ Error generating PDF: {str(e)}")
+                st.exception(e)
+else:
+    st.info("👆 Please upload a Word document with your questions to get started")
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              { name: 'Alex "Phoenix" Chen', role: 'IGL/Slayer', game: 'CODM', rank: 'Legendary' },
-              { name: 'Sarah "Viper" Johnson', role: 'Assault/Entry', game: 'CODM', rank: 'Legendary' },
-              { name: 'Mike "Thunder" Rodriguez', role: 'Support/Anchor', game: 'CODM', rank: 'Grand Master' },
-              { name: 'Emma "Frost" Kim', role: 'Sniper/Flex', game: 'CODM', rank: 'Legendary' },
-              { name: 'Jake "Storm" Wilson', role: 'Obj/Rusher', game: 'CODM', rank: 'Grand Master' },
-              { name: 'Lisa "Nova" Zhang', role: 'Sub/Coach', game: 'CODM', rank: 'Master' },
-            ].map((player, index) => (
-              <Card
-                key={index}
-                className="bg-black/70 border border-red-600 hover:border-yellow-400 transition-all duration-300 hover:shadow-xl hover:shadow-red-500/20 group"
-              >
-                <CardContent className="p-6 text-center">
-                  <div className="w-20 h-20 bg-gradient-to-br from-red-500 to-yellow-500 rounded-full mx-auto mb-4 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                    <Target className="w-10 h-10 text-white" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-white mb-2">{player.name}</h3>
-                  <p className="text-red-400 font-medium mb-1">{player.role}</p>
-                  <p className="text-gray-400 text-sm mb-2">{player.game}</p>
-                  <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
-                    {player.rank}
-                  </Badge>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
+# Instructions
+with st.expander("📚 How to use this app"):
+    st.markdown("""
+    ### Step-by-Step Guide:
+    
+    1. **Prepare Your Word Document**
+       - Create a .docx file with 40 questions
+       - Each question should be a separate paragraph
+       - Save the file
+    
+    2. **Upload Word Document**
+       - Click the uploader in the left column
+       - Select your Word file
+       - The app will extract all questions automatically
+    
+    3. **Prepare Screenshots (Optional)**
+       - Name them like: `1.png`, `2.png`, ... or any naming scheme
+       - Screenshots will be paired with questions in upload order
+       - Or let the app match by filename numbers
+    
+    4. **Configure Settings** (Optional)
+       - Choose page size (A4 or Letter)
+       - Adjust font size for questions
+       - Enable/disable page numbers
+    
+    5. **Generate PDF**
+       - Click "Generate PDF" button
+       - The app creates one question per page
+       - Screenshots are embedded below questions
+    
+    6. **Download**
+       - Click "Download PDF" to save your file
+    
+    ### Features:
+    - ✅ One question per page (professional layout)
+    - ✅ Screenshots embedded in correct order
+    - ✅ Page numbers (optional)
+    - ✅ Customizable font size
+    - ✅ Auto-scaling screenshots
+    - ✅ Support for A4 and Letter sizes
+    """)
 
-      {/* Achievements Section */}
-      <section id="achievements" className="py-20 bg-gradient-to-br from-black to-red-950">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
-              Our <span className="text-yellow-400">Journey</span>
-            </h2>
-            <p className="text-gray-300 text-lg max-w-2xl mx-auto">
-              Building our legacy in Call of Duty Mobile competitive scene
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              { tournament: 'CODM World Championship 2024', placement: '8th Place', prize: '$5,000', game: 'CODM' },
-              { tournament: 'Regional Qualifiers', placement: '3rd Place', prize: '$2,500', game: 'CODM' },
-              { tournament: 'Mobile Masters Cup', placement: '5th Place', prize: '$1,000', game: 'CODM' },
-              { tournament: 'Elite Series Tournament', placement: '2nd Place', prize: '$3,000', game: 'CODM' },
-              { tournament: 'Spring Championship', placement: '4th Place', prize: '$1,500', game: 'CODM' },
-              { tournament: 'Local League Finals', placement: '1st Place', prize: '$800', game: 'CODM' },
-            ].map((achievement, index) => (
-              <Card
-                key={index}
-                className="bg-black/60 border border-red-600 hover:border-yellow-400 transition-all duration-300 hover:shadow-xl hover:shadow-yellow-500/20 group"
-              >
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <Trophy className="w-8 h-8 text-yellow-400 group-hover:rotate-12 transition-transform duration-300" />
-                    <Badge
-                      variant="secondary"
-                      className={`${
-                        achievement.placement === '1st Place'
-                          ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
-                          : achievement.placement === '2nd Place'
-                          ? 'bg-gray-400/20 text-gray-300 border-gray-400/30'
-                          : 'bg-red-500/20 text-red-400 border-red-500/30'
-                      }`}
-                    >
-                      {achievement.placement}
-                    </Badge>
-                  </div>
-                  <h3 className="text-lg font-semibold text-white mb-2">{achievement.tournament}</h3>
-                  <p className="text-red-400 text-sm mb-2">{achievement.game}</p>
-                  <p className="text-yellow-400 font-bold text-xl">{achievement.prize}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* About Section */}
-      <section id="about" className="py-20 bg-black/70">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-                About <span className="text-red-500">Elite Tatins</span>
-              </h2>
-              <p className="text-gray-300 text-lg mb-6 leading-relaxed">
-                Founded in 2023, Elite Tatins is an ambitious Call of Duty Mobile esports organization focused on
-                developing talent and competing at the highest levels. We're building our reputation through
-                dedication, strategic gameplay, and continuous improvement.
-              </p>
-              <p className="text-gray-300 text-lg mb-8 leading-relaxed">
-                As an upcoming organization, we're committed to growth, learning, and making our mark in the
-                competitive CODM scene. Every match is an opportunity to prove ourselves and climb the ranks.
-              </p>
-
-              <div className="grid grid-cols-2 gap-6">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-red-500 mb-2">15+</div>
-                  <div className="text-gray-400">Tournaments Played</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-yellow-400 mb-2">$15K+</div>
-                  <div className="text-gray-400">Prize Money</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-white mb-2">8</div>
-                  <div className="text-gray-400">Active Players</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-red-300 mb-2">1</div>
-                  <div className="text-gray-400">Main Title</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="relative">
-              <div className="bg-gradient-to-br from-red-600/30 to-black/40 p-8 rounded-2xl border border-red-600/50">
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="bg-black/50 p-4 rounded-lg text-center">
-                    <Target className="w-8 h-8 text-red-400 mx-auto mb-2" />
-                    <div className="text-white font-semibold">Aim</div>
-                  </div>
-                  <div className="bg-black/50 p-4 rounded-lg text-center">
-                    <Zap className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
-                    <div className="text-white font-semibold">Speed</div>
-                  </div>
-                  <div className="bg-black/50 p-4 rounded-lg text-center">
-                    <Users className="w-8 h-8 text-red-400 mx-auto mb-2" />
-                    <div className="text-white font-semibold">Teamwork</div>
-                  </div>
-                  <div className="bg-black/50 p-4 rounded-lg text-center">
-                    <Award className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
-                    <div className="text-white font-semibold">Growth</div>
-                  </div>
-                </div>
-                <h3 className="text-2xl font-bold text-white text-center">CODM Excellence</h3>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Contact Section */}
-      <section id="contact" className="py-20 bg-black/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
-              Join the <span className="text-red-500">Elite</span>
-            </h2>
-            <p className="text-gray-300 text-lg max-w-2xl mx-auto">
-              Ready to compete at the highest level? Get in touch with our management team
-            </p>
-          </div>
-
-          <div className="grid lg:grid-cols-2 gap-12">
-            <div className="space-y-8">
-              <div className="bg-black/60 p-6 rounded-lg border border-red-600">
-                <h3 className="text-2xl font-bold text-white mb-4">Contact Information</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-3">
-                    <Mail className="w-5 h-5 text-red-400" />
-                    <span className="text-gray-300">management@elitetatins.gg</span>
-                  </div>
-                  <
+# Requirements info
+st.markdown("---")
+st.markdown("""
+**Requirements (Install before running):**
