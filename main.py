@@ -12,62 +12,48 @@ from reportlab.lib.units import inch
 from reportlab.lib import colors
 from PIL import Image as PILImage
 
-# Page configuration
-st.set_page_config(
-    page_title="Question PDF Generator",
-    page_icon="📄",
-    layout="wide"
-)
+st.set_page_config(page_title="Question PDF Generator", page_icon="📄", layout="wide")
 
-# Title and description
 st.title("📄 Question PDF Generator")
-st.markdown("**Create professional PDFs with one question per page + optional screenshots**")
+st.markdown("Create professional PDFs with one question per page")
 
-# Sidebar settings
-st.sidebar.header("⚙️ PDF Settings")
-page_size_option = st.sidebar.selectbox(
-    "Page Size",
-    ["A4", "Letter"],
-    help="Select your preferred page size"
-)
+# Sidebar
+st.sidebar.header("⚙️ Settings")
+page_size_option = st.sidebar.selectbox("Page Size", ["A4", "Letter"])
 page_size = A4 if page_size_option == "A4" else letter
-
-font_size = st.sidebar.slider(
-    "Question Font Size",
-    min_value=10,
-    max_value=18,
-    value=12,
-    help="Adjust the font size for questions"
-)
-
-show_page_numbers = st.sidebar.checkbox(
-    "Show page numbers",
-    value=True,
-    help="Add page numbers at the bottom of each page"
-)
+font_size = st.sidebar.slider("Font Size", 10, 18, 12)
+show_page_numbers = st.sidebar.checkbox("Page numbers", value=True)
 
 # Main layout
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader("📋 Step 1: Upload Word Document")
-    word_file = st.file_uploader(
-        "Choose your Word file",
-        type=["doc", "docx"],
-        help="Upload a .doc or .docx file containing your questions"
-    )
+    st.subheader("📋 Upload Word Document")
+    word_file = st.file_uploader("Choose Word file", type=["doc", "docx"])
 
 with col2:
-    st.subheader("🖼️ Step 2: Upload Screenshots (Optional)")
-    screenshot_files = st.file_uploader(
-        "Choose screenshot files",
-        type=["png", "jpg", "jpeg"],
-        accept_multiple_files=True,
-        help="Name files as: 1.png, 2.png, 3.png, etc. for correct ordering"
-    )
+    st.subheader("🖼️ Upload Screenshots")
+    screenshot_files = st.file_uploader("Choose screenshots", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
 
-# Function to convert .doc to .docx
 def convert_doc_to_docx(doc_path):
-    """
-    Convert .doc file to .docx format using LibreOffice
-    Returns the path to the converted file or None i
+    try:
+        output_dir = tempfile.gettempdir()
+        subprocess.run(['libreoffice', '--headless', '--convert-to', 'docx', '--outdir', output_dir, doc_path], 
+                      capture_output=True, timeout=30)
+        base_name = os.path.splitext(os.path.basename(doc_path))[0]
+        converted = os.path.join(output_dir, base_name + '.docx')
+        return converted if os.path.exists(converted) else None
+    except:
+        return None
+
+# Extract questions
+questions = []
+
+if word_file:
+    st.markdown("---")
+
+    with st.spinner("Reading document..."):
+        try:
+            file_ext = '.docx' if word_file.name.endswith('.docx') else '.doc'
+
+            with tempfile.NamedTemporaryFile(delete=F
