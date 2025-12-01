@@ -9,7 +9,6 @@ from reportlab.lib.units import inch
 from reportlab.lib import colors
 from PIL import Image as PILImage
 import io
-import re
 
 # ---- Streamlit page config ----
 st.set_page_config(page_title="Question PDF Generator", layout="wide")
@@ -107,14 +106,22 @@ if word_file:
     except Exception as e:
         st.error(f"Problem reading Word document: {e}")
 
-# ---- Screenshot mapping (question number -> UploadedFile) ----
-screenshots_dict = {}
+# ---- Screenshot mapping (purely by order: 1st -> Q1, 2nd -> Q2, ...) ----
+# Supports multiple screenshots per question if you ever want to extend.
+screenshots_dict = {}  # {question_number: [UploadedFile, ...]}
 if screenshot_files:
     for idx, file in enumerate(screenshot_files):
-        # Try to extract first number from filename; else fallback to index+1
-        numbers = re.findall(r'\d+', file.name)
-        num = int(numbers[0]) if numbers else idx + 1
-        screenshots_dict[num] = file
+        q_index = idx + 1  # 1-based to match enumerate(questions, 1)
+        if q_index not in screenshots_dict:
+            screenshots_dict[q_index] = []
+        screenshots_dict[q_index].append(file)
+
+    # Optional: show mapping preview
+    with st.expander("Preview Screenshot Mapping"):
+        for q_num, files in screenshots_dict.items():
+            st.write(f"Q{q_num} screenshots:")
+            for f in files:
+                st.write(f"- {f.name}")
 
 # ---- PDF Generation ----
 if questions:
@@ -145,32 +152,32 @@ if questions:
             # Add question text
             story.append(Paragraph(f"Q{q_num}: {question}", qstyle))
 
-            # Add screenshot if available
+            # Add screenshot(s) if available
             if q_num in screenshots_dict:
-                try:
-                    uploaded_file = screenshots_dict[q_num]
-                    uploaded_file.seek(0)
-                    img_bytes = uploaded_file.read()
+                for uploaded_file in screenshots_dict[q_num]:
+                    try:
+                        uploaded_file.seek(0)
+                        img_bytes = uploaded_file.read()
 
-                    # Use PIL to get image size
-                    pil_img = PILImage.open(io.BytesIO(img_bytes))
-                    img_width, img_height = pil_img.size
+                        # Use PIL to get image size
+                        pil_img = PILImage.open(io.BytesIO(img_bytes))
+                        img_width, img_height = pil_img.size
 
-                    # Calculate target size for PDF
-                    max_width = page_size[0] - inch  # 0.5" margin each side
-                    target_width = min(max_width, 5.5 * inch)
-                    aspect = img_height / img_width
-                    target_height = target_width * aspect
+                        # Calculate target size for PDF
+                        max_width = page_size[0] - inch  # 0.5" margin each side
+                        target_width = min(max_width, 5.5 * inch)
+                        aspect = img_height / img_width
+                        target_height = target_width * aspect
 
-                    # BytesIO buffer for reportlab Image
-                    img_buffer = io.BytesIO(img_bytes)
+                        # BytesIO buffer for reportlab Image
+                        img_buffer = io.BytesIO(img_bytes)
 
-                    story.append(Spacer(1, 0.15 * inch))
-                    story.append(
-                        Image(img_buffer, width=target_width, height=target_height)
-                    )
-                except Exception as e:
-                    st.warning(f"Could not embed screenshot for Q{q_num}: {e}")
+                        story.append(Spacer(1, 0.15 * inch))
+                        story.append(
+                            Image(img_buffer, width=target_width, height=target_height)
+                        )
+                    except Exception as e:
+                        st.warning(f"Could not embed screenshot for Q{q_num}: {e}")
 
             # Page break between questions
             if q_num < len(questions):
@@ -204,8 +211,8 @@ with st.expander("How to use this app"):
     st.markdown(
         """
 1. Upload your `.doc` or `.docx` file listing questions or tasks.
-2. Optionally upload screenshots, numbered to match question order (e.g. `Q1.png` → 1, `2_question.png` → 2).
-3. Click **Generate PDF**. Each page = one question + matching screenshot (if provided).
+2. Optionally upload screenshots **in the same order as the questions** (1st screenshot → Q1, 2nd → Q2, etc.).
+3. Click **Generate PDF**. Each page = one question + matching screenshot(s) (if provided).
 4. Download and print or share your PDF.
 
 - **For `.doc` files, LibreOffice must be installed.**
