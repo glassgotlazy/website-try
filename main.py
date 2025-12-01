@@ -1,9 +1,11 @@
-import streamlit as st
+mport streamlit as st
 import tempfile
 import os
 import subprocess
 import re
 import io
+import base64
+from datetime import datetime
 from docx import Document
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Image
 from reportlab.lib.pagesizes import A4, letter
@@ -12,45 +14,43 @@ from reportlab.lib.units import inch
 from reportlab.lib import colors
 from PIL import Image as PILImage
 
-st.set_page_config(page_title="Question PDF Generator", page_icon="📄", layout="wide")
-st.title("📄 Question PDF Generator")
-st.markdown("Create professional PDFs with one question per page")
+st.set_page_config(page_title="Question PDF Generator Pro", page_icon="📄", layout="wide", initial_sidebar_state="expanded")
 
-st.sidebar.header("⚙️ Settings")
-page_size_option = st.sidebar.selectbox("Page Size", ["A4", "Letter"])
-page_size = A4 if page_size_option == "A4" else letter
-font_size = st.sidebar.slider("Font Size", 10, 18, 12)
-show_page_numbers = st.sidebar.checkbox("Page numbers", value=True)
+st.title("📄 Question PDF Generator Pro")
+st.markdown("**Create professional PDFs with one question per page + screenshots**")
+st.markdown("---")
 
-col1, col2 = st.columns(2)
+# Sidebar with ALL settings
+st.sidebar.header("⚙️ PDF Settings")
 
-with col1:
-    st.subheader("📋 Upload Word Document")
-    word_file = st.file_uploader("Choose Word file", type=["doc", "docx"])
+# Page settings
+st.sidebar.subheader("📏 Page Layout")
+page_size_option = st.sidebar.selectbox("Page Size", ["A4", "Letter", "Legal"])
+if page_size_option == "A4":
+    page_size = A4
+elif page_size_option == "Letter":
+    page_size = letter
+else:
+    from reportlab.lib.pagesizes import LEGAL
+    page_size = LEGAL
 
-with col2:
-    st.subheader("🖼️ Upload Screenshots")
-    screenshot_files = st.file_uploader("Choose screenshots", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
+orientation = st.sidebar.radio("Orientation", ["Portrait", "Landscape"])
+if orientation == "Landscape":
+    page_size = (page_size[1], page_size[0])
 
-def convert_doc(path):
-    try:
-        outdir = tempfile.gettempdir()
-        subprocess.run(["libreoffice", "--headless", "--convert-to", "docx", "--outdir", outdir, path], capture_output=True, timeout=30)
-        base = os.path.splitext(os.path.basename(path))[0]
-        converted = os.path.join(outdir, base + ".docx")
-        if os.path.exists(converted):
-            return converted
-        return None
-    except Exception:
-        return None
+# Typography settings
+st.sidebar.subheader("✍️ Typography")
+font_size = st.sidebar.slider("Question Font Size", 10, 20, 12)
+font_family = st.sidebar.selectbox("Font Family", ["Helvetica", "Times-Roman", "Courier"])
+question_color = st.sidebar.color_picker("Question Color", "#000000")
 
-questions = []
+# Spacing settings
+st.sidebar.subheader("📐 Spacing")
+top_margin = st.sidebar.slider("Top Margin (inches)", 0.25, 2.0, 0.75, 0.25)
+side_margin = st.sidebar.slider("Side Margin (inches)", 0.25, 2.0, 0.5, 0.25)
 
-if word_file:
-    st.markdown("---")
-    with st.spinner("Reading document..."):
-        ext = ".docx" if word_file.name.endswith(".docx") else ".doc"
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
-        tmp.write(word_file.getvalue())
-        tmp.close()
-        path = tmp.name
+# Header/Footer settings
+st.sidebar.subheader("📋 Header & Footer")
+show_page_numbers = st.sidebar.checkbox("Page Numbers", value=True)
+page_num_position = st.sidebar.selectbox("Page Number Position", ["Center", "Left", "Right"])
+show_heade
