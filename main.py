@@ -2,7 +2,15 @@ import streamlit as st
 import tempfile
 import os
 import subprocess
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Image
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    PageBreak,
+    Image,
+    Table,
+    TableStyle,
+)
 from reportlab.lib.pagesizes import A4, letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
@@ -16,7 +24,7 @@ st.title("📄 Question PDF Generator")
 st.markdown("Convert your questions and optional screenshots into a pro PDF (one question per page)")
 
 # ---- Sidebar ----
-st.sidebar.header('⚙️ Settings')
+st.sidebar.header("⚙️ Settings")
 page_size_option = st.sidebar.selectbox("Page Size", ["A4", "Letter"])
 page_size = A4 if page_size_option == "A4" else letter
 font_size = st.sidebar.slider("Question Font Size", 10, 18, 14)
@@ -29,15 +37,15 @@ with col1:
     st.subheader("📋 Upload Word Document")
     word_file = st.file_uploader(
         "Select .doc or .docx file with questions",
-        type=["doc", "docx"]
+        type=["doc", "docx"],
     )
 
 with col2:
     st.subheader("🖼️ Upload Screenshots")
     screenshot_files = st.file_uploader(
         "Upload screenshots (in order, optional)",
-        type=['jpg', 'jpeg', 'png'],
-        accept_multiple_files=True
+        type=["jpg", "jpeg", "png"],
+        accept_multiple_files=True,
     )
 
 # ---- Helper for doc -> docx conversion ----
@@ -46,15 +54,20 @@ def convert_doc_to_docx(in_path):
         output_dir = tempfile.gettempdir()
         subprocess.run(
             [
-                'libreoffice', '--headless', '--convert-to', 'docx',
-                '--outdir', output_dir, in_path
+                "libreoffice",
+                "--headless",
+                "--convert-to",
+                "docx",
+                "--outdir",
+                output_dir,
+                in_path,
             ],
             check=True,
-            capture_output=True
+            capture_output=True,
         )
         return os.path.join(
             output_dir,
-            os.path.splitext(os.path.basename(in_path))[0] + '.docx'
+            os.path.splitext(os.path.basename(in_path))[0] + ".docx",
         )
     except Exception:
         st.error("Failed to convert .doc to .docx. Please save as .docx manually if this persists.")
@@ -64,7 +77,9 @@ def convert_doc_to_docx(in_path):
 questions = []
 if word_file:
     is_docx = word_file.name.lower().endswith(".docx")
-    with tempfile.NamedTemporaryFile(delete=False, suffix=('.docx' if is_docx else '.doc')) as tmp_file:
+    with tempfile.NamedTemporaryFile(
+        delete=False, suffix=(".docx" if is_docx else ".doc")
+    ) as tmp_file:
         tmp_file.write(word_file.read())
         tmp_path = tmp_file.name
 
@@ -77,6 +92,7 @@ if word_file:
             st.stop()
 
     from docx import Document
+
     try:
         doc = Document(tmp_path)
 
@@ -107,7 +123,6 @@ if word_file:
         st.error(f"Problem reading Word document: {e}")
 
 # ---- Screenshot mapping (purely by order: 1st -> Q1, 2nd -> Q2, ...) ----
-# Supports multiple screenshots per question if you ever want to extend.
 screenshots_dict = {}  # {question_number: [UploadedFile, ...]}
 if screenshot_files:
     for idx, file in enumerate(screenshot_files):
@@ -133,27 +148,43 @@ if questions:
             rightMargin=0.5 * inch,
             leftMargin=0.5 * inch,
             topMargin=0.75 * inch,
-            bottomMargin=0.75 * inch
+            bottomMargin=0.75 * inch,
         )
 
         styles = getSampleStyleSheet()
+
+        # Bold question style
         qstyle = ParagraphStyle(
             "Question",
             parent=styles["Normal"],
+            fontName="Helvetica-Bold",
             fontSize=font_size,
+            leading=font_size + 2,
             alignment=0,  # left
-            spaceAfter=0.4 * inch,
-            textColor=colors.HexColor("#1a1a1a"),
+            spaceAfter=0.25 * inch,
+            textColor=colors.HexColor("#111111"),
+        )
+
+        # Small label style (for "Screenshot:")
+        label_style = ParagraphStyle(
+            "Label",
+            parent=styles["Normal"],
+            fontName="Helvetica",
+            fontSize=10,
+            textColor=colors.HexColor("#555555"),
+            spaceAfter=0.05 * inch,
         )
 
         story = []
 
         for q_num, question in enumerate(questions, 1):
-            # Add question text
+            # Add question text (bold)
             story.append(Paragraph(f"Q{q_num}: {question}", qstyle))
+            story.append(Spacer(1, 0.1 * inch))
 
-            # Add screenshot(s) if available
+            # Add screenshot(s) if available (inside decorative box)
             if q_num in screenshots_dict:
+                story.append(Paragraph("Screenshot:", label_style))
                 for uploaded_file in screenshots_dict[q_num]:
                     try:
                         uploaded_file.seek(0)
@@ -172,12 +203,34 @@ if questions:
                         # BytesIO buffer for reportlab Image
                         img_buffer = io.BytesIO(img_bytes)
 
-                        story.append(Spacer(1, 0.15 * inch))
-                        story.append(
-                            Image(img_buffer, width=target_width, height=target_height)
+                        img_flowable = Image(
+                            img_buffer, width=target_width, height=target_height
                         )
+
+                        # Decorative box using Table
+                        img_table = Table([[img_flowable]])
+                        img_table.setStyle(
+                            TableStyle(
+                                [
+                                    ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#444444")),
+                                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                                    ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f5f7fb")),
+                                ]
+                            )
+                        )
+
+                        story.append(img_table)
+                        story.append(Spacer(1, 0.2 * inch))
                     except Exception as e:
                         st.warning(f"Could not embed screenshot for Q{q_num}: {e}")
+            else:
+                # Small spacer if no screenshot
+                story.append(Spacer(1, 0.2 * inch))
 
             # Page break between questions
             if q_num < len(questions):
@@ -190,7 +243,9 @@ if questions:
                 canvas.setFont("Helvetica", 8)
                 canvas.setFillColor(colors.grey)
                 canvas.drawCentredString(
-                    page_size[0] / 2, 0.40 * inch, f"Page {doc_obj.page}"
+                    page_size[0] / 2,
+                    0.40 * inch,
+                    f"Page {doc_obj.page}",
                 )
                 canvas.restoreState()
 
@@ -202,8 +257,8 @@ if questions:
         st.download_button(
             label="📥 Download PDF",
             data=pdf_bytes,
-            file_name="questions_with_screenshots.pdf",
-            mime="application/pdf"
+            file_name="questions_with_screenshots_decorative.pdf",
+            mime="application/pdf",
         )
 
 # ---- Info and requirements ----
@@ -212,7 +267,7 @@ with st.expander("How to use this app"):
         """
 1. Upload your `.doc` or `.docx` file listing questions or tasks.
 2. Optionally upload screenshots **in the same order as the questions** (1st screenshot → Q1, 2nd → Q2, etc.).
-3. Click **Generate PDF**. Each page = one question + matching screenshot(s) (if provided).
+3. Click **Generate PDF**. Each page = one bold question + its screenshot(s) inside a decorative box.
 4. Download and print or share your PDF.
 
 - **For `.doc` files, LibreOffice must be installed.**
@@ -220,4 +275,4 @@ with st.expander("How to use this app"):
         """
     )
 
-st.caption("Made with Streamlit · Supports .doc and .docx · Professional multipage PDF")
+st.caption("Made with Streamlit · Supports .doc and .docx · Styled multipage PDF")
