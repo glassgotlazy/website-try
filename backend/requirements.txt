@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+openai
+python-dotenv
+google-api-python-client
+google-auth-oauthlib
+sentence-transformers
+scikit-learn
+pandas
